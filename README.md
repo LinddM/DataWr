@@ -1,3 +1,3 @@
 # DataWr
 
-## Labs from my Data Wrangling course
+Labs from my Data Wrangling course
