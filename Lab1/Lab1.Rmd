@@ -1,0 +1,130 @@
+---
+title: "Lab 1"
+author: "Maite de la Roca"
+date: "8/7/2020"
+output: rmarkdown::github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Problema 1
+
+#### Escenario
+Ha sido contratado para trabajar en una consultoría a una embotelladora nacional. La
+embotelladora se encarga de distribuir su producto a distintos clientes, utilizando diferentes
+equipos de transporte y pilotos.
+Se le ha enviado un set de archivos de las entregas del año 2018.
+
+#### Se requiere
+* Unificar todos los archivos en una tabla única.
+* Agregar una columna adicional que identifique al mes y año de ese archivo, por
+ejemplo: Fecha: 01-2018.
+* Exportar ese archivo en formato csv o Excel.
+* Adjuntar el link de su Git Rmarkdown de R con lo que realizó lo anterior.
+* Adjuntar archivo csv o Excel unificado que genera el archivo de R.
+
+#### Nota
+* Las variables que el archivo necesita tener son: COD_VIAJE, CLIENTE, UBICACIÓN,
+CANTIDAD, PILOTO, Q, CREDITO, UNIDAD, FECHA
+
+##### Librerias
+```{r results=FALSE, message=FALSE}
+# libraries
+library(readxl)
+library(dplyr)
+library(tidyverse)
+```
+
+##### Leer los archivos y ponerlos en una lista
+```{r}
+# set files in list
+rawFiles <- list.files(pattern='xlsx')
+print(rawFiles)
+```
+```{r results=FALSE, message=FALSE}
+# read files in list as xlsx
+noDateFiles <- lapply(rawFiles, read_excel)
+```
+
+##### Agregar la columna FECHA a cada lista
+```{r}
+# add the date column to the file
+addC <- function (file, dates){
+  name<-substr(deparse(dates), 2, 8)
+  newCol <- rep(name, nrow(file))
+  newFile <- file %>% add_column(FECHA=newCol)
+  return (newFile)
+}
+
+# call function to add column
+filesWithColumns<-mapply(addC, noDateFiles, rawFiles)
+
+head(filesWithColumns[[1]])
+```
+
+##### Combinar todas las listas en una sola, quitar columnas innecesarias
+```{r}
+# combine all files into one
+finalFile<-filesWithColumns %>% map_df(~filesWithColumns,.x)
+
+# remove unnecessary columns
+finalFile$TIPO<-NULL
+finalFile$...10<-NULL
+
+finalFile
+```
+
+##### Generar csv
+```{r}
+# generate csv
+write_excel_csv2(finalFile, '2018.xls', delim=',')
+```
+
+
+### Problema 2
+
+Utilizando la función lapply, encuentre la moda de cada vector de una lista de por lo menos 3
+vectores.
+
+##### Crear una lista aleatoria de vectores
+```{r}
+# list of vectors
+myList <- list(sample(1:3, size=9, replace=TRUE), sample(letters, size=9, replace=TRUE), sample(1:3, size=9, replace=TRUE))
+
+myList
+```
+
+##### Encontrar la moda
+```{r}
+# determine unique values and repetition
+mode_v <- function(vector) {
+  uniqueElements <- unique(vector)
+  uniqueElements[which.max(tabulate(match(vector, uniqueElements)))]
+}
+
+# call function to determine mode
+lapply(myList, mode_v)
+```
+
+
+## Problema 3
+
+A. Descargue de la página web de la SAT el archivo de Parque Vehicular de Junio 2020.
+
+B. Leer el archivo en R. (Nota: usar read_delim() del paquete readr)
+
+##### Libreria
+```{r results=FALSE, message=FALSE}
+library(readr)
+```
+
+##### Leer el archivo
+```{r results=FALSE, message=FALSE, warning=FALSE}
+# read txt separated with "|"
+myTxt <- read_delim('INE_PARQUE_VEHICULAR.txt', delim='|')
+```
+```{r}
+head(myTxt)
+```
