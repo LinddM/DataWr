@@ -2,7 +2,8 @@
 title: "Laboratorio 4"
 subtitle: "Reporte escrito"
 author: "Lindsey"
-output: rmarkdown::github_document
+output: html_document:
+    keep_md: true
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
