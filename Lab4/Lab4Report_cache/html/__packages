@@ -1,0 +1,14 @@
+base
+readr
+dplyr
+highcharter
+ggplot2
+ggpubr
+tidyverse
+tibble
+tidyr
+purrr
+stringr
+forcats
+gridGraphics
+qcc
