@@ -1,8 +1,10 @@
 ---
 title: "Laboratorio 4"
-subtitle: "Reporte escrito"
 author: "Lindsey"
-output: rmarkdown::github_document
+subtitle: Reporte escrito
+output:
+  pdf_document: default
+  html_document: default
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)

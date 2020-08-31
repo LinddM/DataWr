@@ -2,8 +2,7 @@
 title: "Laboratorio 4"
 subtitle: "Reporte escrito"
 author: "Lindsey"
-output: html_document:
-    keep_md: true
+output: pdf
 ---
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
