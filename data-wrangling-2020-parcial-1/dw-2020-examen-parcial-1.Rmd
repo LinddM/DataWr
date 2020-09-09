@@ -141,11 +141,13 @@ if(mayoresVentas$Cliente != mayoresUP$Cliente){
 print(paste('El cliente mas rentable es ', masRentable$Cliente, ' porque tiene mayores ventas'))
 ```
 
+El cliente mas rentable es a17a7558 por sus ventas
+
 
 
 
 ## B
-
+El criterio sera comparar ganancias del primer mes y del ultimo. Asi se evaluara que territorio se va y cual se queda
 ```{r }
 library(dplyr)
 
@@ -157,7 +159,22 @@ incisoDos <- parcial_anonimo %>%
 
 incisoDos$DATE=NULL
 
-incisoDos %>% distinct()
+inDuno <- incisoDos %>% distinct()%>%
+  filter(mes=='01') %>%
+  group_by(Territorio)
 
+inDcuatro <- incisoDos %>% distinct()%>%
+  filter(mes=='04')%>%
+  group_by(Territorio)
+
+compare <- function(territorio, mesarriba, mesabajo){
+  if(mesarriba>mesabajo){
+    return(paste('el territorio ', territorio, ' se va'))
+  }else{
+    return(paste('el territorio ', territorio, ' se queda'))
+  }
+}
+
+comp <- mapply(compare, inDuno$Territorio, inDuno$Venta, inDcuatro$Venta)
 ```
 
