@@ -60,7 +60,7 @@ Podemos concluir que hay menor ganancia con las paneles y hay más movimiento de
 
 ¿Debemos invertir en la compra de más vehículos de distribución? ¿Cuántos y de que tipo?
 ========================================================
-Si se pretende reemplazar las paneles con camiones grandes
+Si se pretende reemplazar las paneles con camiones grandes se debe hacer compra de 1 camion
 
 ```
 [1] "Unidades maximas soportadas por paneles:  500"
@@ -71,7 +71,7 @@ Si se pretende reemplazar las paneles con camiones grandes
 ```
 
 ```
-[1] "Camiones que pueden reemplazar paneles:  4"
+[1] "Paneles reemplazables por cada camion:  4"
 ```
 
 

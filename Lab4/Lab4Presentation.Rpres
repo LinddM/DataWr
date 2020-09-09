@@ -116,7 +116,7 @@ Podemos concluir que hay menor ganancia con las paneles y hay más movimiento de
 
 ¿Debemos invertir en la compra de más vehículos de distribución? ¿Cuántos y de que tipo?
 ========================================================
-Si se pretende reemplazar las paneles con camiones grandes
+Si se pretende reemplazar las paneles con camiones grandes se debe hacer compra de 1 camion
 ```{r echo=FALSE}
 # profit y cantidad de producto movido mensual por unidad
 vehicles_an <- df %>% 
@@ -130,7 +130,7 @@ p <- vehicles_an %>% filter(UNIDAD=='Panel') %>% select(max_p)
 compra <- round(cg/p)
 print(paste('Unidades maximas soportadas por paneles: ', p))
 print(paste('Unidades maximas soportadas por camiones grandes: ', cg))
-print(paste('Camiones que pueden reemplazar paneles: ', compra))
+print(paste('Paneles reemplazables por cada camion: ', compra))
 ```
 
 
