@@ -1,0 +1,99 @@
+---
+title: "Informe de análisis de Inversiones en Energía, S.A. de C.V"
+author: "Maite de la Roca"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r librerias, include=FALSE}
+library(readr)
+library(tidyverse)
+library(tidyr)
+library(reshape2)
+library(dplyr)
+```
+
+```{r dataset, include=FALSE}
+data <- read_csv("c1.csv")
+
+#### Limpieza del dataset
+
+names(data)[names(data)=="Camion_5"] <- "Camion"
+names(data)[names(data)=="directoCamion_5"] <- "directoCamion"
+names(data)[names(data)=="fijoCamion_5"] <- "fijoCamion"
+data$X23 <-NULL
+data$X24 <-NULL
+data$X25 <-NULL
+data$X26 <-NULL
+data$X27 <-NULL
+data$X28 <-NULL
+
+# wide to long 1: vehiculos y costos
+data <- melt(data, measure.vars = c("Camion","Pickup", "Moto"))
+names(data)[names(data)=="variable"] <- "Vehiculo"
+names(data)[names(data)=="value"] <- "costoVehiculo"
+data$costoVehiculo <- replace(data$costoVehiculo, data$costoVehiculo=='Q-',NA) 
+data <- data %>% filter(!is.na(costoVehiculo))
+
+# wide to long 2: directoVehiculos y costos 
+data <- melt(data, measure.vars = c("directoCamion","directoPickup", "directoMoto"))
+names(data)[names(data)=="variable"] <- "directoVehiculo"
+names(data)[names(data)=="value"] <- "costoDirectoVehiculo"
+data$costoDirectoVehiculo <- replace(data$costoDirectoVehiculo, data$costoDirectoVehiculo=='Q-',NA) 
+data <- data %>% filter(!is.na(costoDirectoVehiculo))
+
+# wide to long 3: fijoVehiculos y costos 
+data <- melt(data, measure.vars = c("fijoCamion","fijoPickup", "fijoMoto"))
+names(data)[names(data)=="variable"] <- "fijoVehiculo"
+names(data)[names(data)=="value"] <- "costoFijoVehiculo"
+data$costoFijoVehiculo <- replace(data$costoFijoVehiculo, data$costoFijoVehiculo=='Q-',NA) 
+data <- data %>% filter(!is.na(costoFijoVehiculo))
+
+# wide to long 4: rangos de tiempo
+data <- melt(data, measure.vars = c("5-30","30-45", "45-75", "75-120", "120+"))
+names(data)[names(data)=="variable"] <- "tiempo"
+names(data)[names(data)=="value"] <- "rangoTiempo"
+data <- data %>% filter(!is.na(rangoTiempo))
+
+# separate date
+data$dia <- substr(data$Fecha, 1, 2)
+data$mes <- substr(data$Fecha, 4, 5)
+data$Fecha <- NULL
+
+data$factura <- sub("Q", "", data$factura)
+
+# delete unnecessary cols
+data$directoVehiculo <- NULL
+data$fijoVehiculo <- NULL
+data$rangoTiempo <- NULL
+
+```
+
+## Puntos generales
+
+* Retrospectiva del 2019
+
+* Siguientes pasos y recomendaciones
+
+
+### Retrospectiva del 2019
+
+#### Breve estado de resultados
+
+#### Tarifario
+
+#### 80-20 de factura
+
+#### Recorridos más efectivos
+
+
+### Recomendaciones para el 2019
+
+#### Pérdidas en mantenimiento o reparación
+
+#### Apertura de centros de distribución
+
+#### Estrategias a seguir
