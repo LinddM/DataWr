@@ -14,6 +14,8 @@ library(tidyverse)
 library(tidyr)
 library(reshape2)
 library(dplyr)
+library(ggplot2)
+library(qcc)
 ```
 
 ```{r dataset, include=FALSE}
@@ -64,12 +66,33 @@ data$mes <- substr(data$Fecha, 4, 5)
 data$Fecha <- NULL
 
 data$factura <- sub("Q", "", data$factura)
+data$factura %>% transform(char = as.numeric(data$factura))
+
+data$costoVehiculo <- sub("Q", "", data$costoVehiculo)
+data$costoVehiculo %>% transform(char = as.numeric(data$costoVehiculo))
+
+data$costoDirectoVehiculo <- sub("Q", "", data$costoDirectoVehiculo)
+data$costoDirectoVehiculo %>% transform(char = as.numeric(data$costoDirectoVehiculo))
+
+data$costoFijoVehiculo <- sub("Q", "", data$costoFijoVehiculo)
+data$costoFijoVehiculo %>% transform(char = as.numeric(data$costoFijoVehiculo))
 
 # delete unnecessary cols
 data$directoVehiculo <- NULL
 data$fijoVehiculo <- NULL
 data$rangoTiempo <- NULL
 
+# maybe later
+data$Lat <- NULL
+data$Long <- NULL
+```
+
+Inversiones en Energía, S.A. de C.V. ha tenido un gran 2019 con una utilidad superior a los US$1
+Millones. Durante estos 9 meses del 2020, han tenido una baja del 25% con respecto al año
+anterior en su margen operativo y el gerente de operaciones ha sido despedido. Como
+consultor independiente, ofrecezco un estudio del mercado de la operación para que el siguiente año la empresa pueda crecer por encima del 10% con respecto al 2019. Una porción de los datos utilizados:
+```{r echo=FALSE}
+head(data)
 ```
 
 ## Puntos generales
@@ -82,18 +105,634 @@ data$rangoTiempo <- NULL
 ### Retrospectiva del 2019
 
 #### Breve estado de resultados
+```{r include=FALSE}
+#### Breve estado de resultados
+
+# ganancias mensuales
+ingreso_mensual <- function(month){
+  cobro <- data %>% select(factura, mes) %>% filter(mes==month) %>% group_by(mes) %>% summarise(s=sum(as.numeric(factura)))
+}
+ingreso_mes <- lapply(sort(unique(data$mes)), ingreso_mensual)
+
+gastos_mensuales <- function(month){
+  cobro <- data %>% select(costoVehiculo, mes) %>% filter(mes==month) %>% group_by(mes) %>% summarise(s=sum(as.numeric(costoVehiculo)))
+}
+gasto_mes <- lapply(sort(unique(data$mes)), gastos_mensuales)
+
+profit <- function(ingreso, gasto){
+  return(as.numeric(ingreso)-as.numeric(gasto))
+}
+ganancia <- mapply(profit, ingreso_mes, gasto_mes)
+
+# ganancias totales
+ganancia_anual <- sum(ganancia)
+
+# diferencias entre primeros 9 meses de este ciclo (2020) y el anterior (2019) vs el proximo (2021)
+nMeses19 <- ganancia_anual - ganancia[2,10]-ganancia[2,11]-ganancia[2,12]
+nMeses20 <- nMeses19*0.80
+nMeses21 <- nMeses20*1.10
+
+creciemiento <- nMeses21 - nMeses20
+```
+
+```{r echo=FALSE}
+ggplot(data=data, aes(x=mes, y=factura, fill=mes)) + geom_bar(stat="identity") + ggtitle("Facturación total por mes")
+```
+
+<table>
+	<tr>
+	  <th colspan="3">Ganancias totales</th>
+	</tr>
+	<tr>
+		<td>Ingresos</td>
+		<td>Costos</td>
+		<td>Ganancias</td>
+	</tr>
+	<tr>
+		<td>Q. 36,688,096</td>
+		<td>Q. 28,174,019</td>
+		<td>Q. 8,514,077</td>
+	</tr>
+</table>
+		
+Comparación de períodos
+```{r include=FALSE}
+nMeses19 <- ganancia_anual - ganancia[2,10]-ganancia[2,11]-ganancia[2,12]
+nMeses20 <- nMeses19*0.80
+nMeses21 <- nMeses20*1.10
+
+crecimiento <- nMeses21 - nMeses20
+```
+
+Ganancia de los primeros 9 meses de 2020 comparados a 2019:
+
+<strong>Q. 6,360,360 (2019)</strong>
+
+<strong>Q. 5,088,288 (2020)</strong>
+
+Hay una disminución sustancial de 25%. Para aumentar un 10% con respecto al 2019 en el 2021 (en el mismo período) debe llegarse a la meta de:
+
+<strong>Q. 5,597,117</strong>
+
+Esto significaría un aumento de Q. 508,828.8 con respecto a los primeros 9 meses del 2020.
+
 
 #### Tarifario
 
+Las tarifas dependen de varias condiciones tales como servicio, tiempo, unidad de transporte, entre otras.
+
+```{r include=FALSE}
+actividad <- unique(data$Cod)
+
+precios_actividades <- function(activity){
+  price <- data %>% select(Cod, Vehiculo, tiempo, factura, costoVehiculo, costoDirectoVehiculo, costoFijoVehiculo) %>% filter(Cod==activity) %>% group_by(Cod)
+}
+tarifas_actividades <- lapply(actividad, precios_actividades)
+
+profit_actividad <- function(actividad){
+  price <- as.data.frame(tarifas_actividades[actividad])
+  ingreso <- sum(as.numeric(price$factura))
+  costos <- sum(as.numeric(price$costoVehiculo))
+  ganancia <- ingreso-costos
+  p <- data.frame(ingreso, costos, ganancia)
+  return(p)
+}
+ganancia_actividad <- lapply(1:10, profit_actividad)
+
+porcentaje_act <- function(act){
+  return(act$ganancia/ganancia_anual)
+}
+porcentaje_actividad <- lapply(ganancia_actividad, porcentaje_act)
+```
+
+```{r include=FALSE}
+# vehiculos
+vehiculos <- as.list(levels(unique(data$Vehiculo)))
+
+# maximo, minimo y media cobrado por vehiculo
+cobros_camion <- function(actividad){
+  price <- as.data.frame(tarifas_actividades[actividad])
+  myPrice <- price %>% filter(Vehiculo=='Camion') %>% summarise(max=max(factura), min=min(factura), mean=mean(as.numeric(factura)))
+}
+tar_camion <- lapply(1:10, cobros_camion)
+
+cobros_pickup <- function(actividad){
+  price <- as.data.frame(tarifas_actividades[actividad])
+  myPrice <- price %>% filter(Vehiculo=='Pickup') %>% summarise(max=max(factura), min=min(factura), mean=mean(as.numeric(factura)))
+}
+tar_pickup <- lapply(1:10, cobros_pickup)
+
+cobros_moto <- function(actividad){
+  price <- as.data.frame(tarifas_actividades[actividad])
+  myPrice <- price %>% filter(Vehiculo=='Moto') %>% summarise(max=max(factura), min=min(factura), mean=mean(as.numeric(factura)))
+}
+tar_moto <- lapply(1:10, cobros_moto)
+tar_moto <- tar_moto[8]
+```
+
+En la empresa se manejan los vehículos:
+
+* Camión
+
+* Pickup
+
+* Moto
+
+Las tarifas máximas, mínimas y promedio de cada vehículo según el tipo de actividad se distribuyen de la siguiente manera:
+
+<table>
+    <tr colspan="4">
+      <th>Tarifas de Camión</th>
+    </tr>
+    <tr>
+			<td>Servicio</td>
+			<td>Máximo</td>
+			<td>Mínimo</td>
+			<td>Promedio</td>
+		</tr>
+		<tr>
+			<td>Revisión de transformador</td>
+			<td>Q. 511.14</td>
+			<td>Q. 27.81</td>
+			<td>Q. 191.49</td>
+		</tr>
+		<tr>
+			<td>Revisión general</td>
+			<td>Q. 503.26</td>
+			<td>Q. 31.85</td>
+			<td>Q. 184.63</td>
+		</tr>
+		<tr>
+			<td>Verificación de indicadores</td>
+			<td>Q. 509.63</td>
+			<td>Q. 27.29</td>
+			<td>Q. 191.39</td>
+		</tr>
+		<tr>
+			<td>Visita por corrección</td>
+			<td>Q. 474.84</td>
+			<td>Q. 26.62</td>
+			<td>Q. 177.08</td>
+		</tr>
+		<tr>
+			<td>Cambio correctivo</td>
+			<td>Q. 470.99</td>
+			<td>Q. 21.58</td>
+			<td>Q. 187.4238</td>
+		</tr>
+		<tr>
+			<td>Otro</td>
+			<td>Q. 470.76</td>
+			<td>Q. 31.6</td>
+			<td>Q. 186.07</td>
+		</tr>
+		<tr>
+			<td>Verificación de medidores</td>
+			<td>Q. 521.67</td>
+			<td>Q. 22.01</td>
+			<td>Q. 184.36</td>
+		</tr>
+		<tr>
+			<td>Cambio de fusibles</td>
+			<td>Q. 2,936,608</td>
+			<td>Q. 2,082,331</td>
+			<td>Q. 854,277</td>
+		</tr>
+		<tr>
+			<td>Cambio de puentes</td>
+			<td>Q. 449.11</td>
+			<td>Q. 24.56</td>
+			<td>Q. 197.14</td>
+		</tr>
+		<tr>
+			<td>Visita general</td>
+			<td>Q. 458.31</td>
+			<td>Q. 66.26</td>
+			<td>Q. 188.26</td>
+		</tr>
+</table>
+
+<table>
+    <tr colspan="4">
+      <th>Tarifas de Pickup</th>
+    </tr>
+    <tr>
+			<td>Servicio</td>
+			<td>Máximo</td>
+			<td>Mínimo</td>
+			<td>Promedio</td>
+		</tr>
+		<tr>
+			<td>Revisión de transformador</td>
+			<td>Q. 325.77</td>
+			<td>Q. 16.63</td>
+			<td>Q. 129.78</td>
+		</tr>
+		<tr>
+			<td>Revisión general</td>
+			<td>Q. 362.39</td>
+			<td>Q. 10.73</td>
+			<td>Q. 126.17</td>
+		</tr>
+		<tr>
+			<td>Verificación de indicadores</td>
+			<td>Q. 328.05</td>
+			<td>Q. 7.3</td>
+			<td>Q. 120.44</td>
+		</tr>
+		<tr>
+			<td>Visita por corrección</td>
+			<td>Q. 291.92</td>
+			<td>Q. 27.99</td>
+			<td>Q. 125.84</td>
+		</tr>
+		<tr>
+			<td>Cambio correctivo</td>
+			<td>Q. 350.55</td>
+			<td>Q. 11.26</td>
+			<td>Q. 122.09</td>
+		</tr>
+		<tr>
+			<td>Otro</td>
+			<td>Q. 300.85</td>
+			<td>Q. 51.64</td>
+			<td>Q. 140.88</td>
+		</tr>
+		<tr>
+			<td>Verificación de medidores</td>
+			<td>Q. 358.84</td>
+			<td>Q. 16.01</td>
+			<td>Q. 127.25</td>
+		</tr>
+		<tr>
+			<td>Cambio de fusibles</td>
+			<td>Q. 322.27</td>
+			<td>Q. 12.98</td>
+			<td>Q. 127.59</td>
+		</tr>
+		<tr>
+			<td>Cambio de puentes</td>
+			<td>Q. 307.91</td>
+			<td>Q. 16.97</td>
+			<td>Q. 124.51</td>
+		</tr>
+		<tr>
+			<td>Visita general</td>
+			<td>Q. 313.04</td>
+			<td>Q. 18.83</td>
+			<td>Q. 123.35</td>
+		</tr>
+</table>
+
+<table>
+    <tr colspan="4">
+      <th>Tarifa de Moto</th>
+    </tr>
+    <tr>
+			<td>Servicio</td>
+			<td>Máximo</td>
+			<td>Mínimo</td>
+			<td>Promedio</td>
+		</tr>
+		<tr>
+			<td>Cambio de fusibles</td>
+			<td>Q. 288.36</td>
+			<td>Q. 29.06</td>
+			<td>Q. 126.47</td>
+		</tr>
+</table> 
+*<i>El servicio de moto fue utilizado solamente para cambio de fusibles.</i>
+
+
+Tarifas por tiempo:
+
+```{r include=FALSE}
+# tiempos
+tiempos <- as.list(levels(unique(data$tiempo)))
+
+times <- data %>% select(tiempo, factura)
+
+time_530 <- times %>% filter(tiempo=="5-30") %>% summarise(max=max(as.numeric(factura)), min=min(as.numeric(factura)), mean=mean(as.numeric(factura)))
+time_3045 <- times %>% filter(tiempo=="30-45") %>% summarise(max=max(as.numeric(factura)), min=min(as.numeric(factura)), mean=mean(as.numeric(factura)))
+time_4575 <- times %>% filter(tiempo=="45-75") %>% summarise(max=max(as.numeric(factura)), min=min(as.numeric(factura)), mean=mean(as.numeric(factura)))
+time_75120 <- times %>% filter(tiempo=="75-120") %>% summarise(max=max(as.numeric(factura)), min=min(as.numeric(factura)), mean=mean(as.numeric(factura)))
+time_120 <- times %>% filter(tiempo=="120+") %>% summarise(max=max(as.numeric(factura)), min=min(as.numeric(factura)), mean=mean(as.numeric(factura)))
+
+```
+<table>
+    <tr colspan="4">
+      <th>Tarifa por tiempo</th>
+    </tr>
+    <tr>
+			<td>Rango de tiempo</td>
+			<td>Máximo</td>
+			<td>Mínimo</td>
+			<td>Promedio</td>
+		</tr>
+		<tr>
+			<td>5-30</td>
+			<td>Q. 155.32</td>
+			<td>Q. 7.3</td>
+			<td>Q. 71.82</td>
+		</tr>
+		<tr>
+			<td>30-45</td>
+			<td>Q. 178.93</td>
+			<td>Q. 60.87</td>
+			<td>Q. 99.68</td>
+		</tr>
+		<tr>
+			<td>45-75</td>
+			<td>Q. 193.73</td>
+			<td>Q. 85.2</td>
+			<td>Q. 118.63</td>
+		</tr>
+		<tr>
+			<td>75-120</td>
+			<td>Q. 272.39</td>
+			<td>Q. 99.19</td>
+			<td>Q. 158.69</td>
+		</tr>
+		<tr>
+			<td>120+</td>
+			<td>Q. 521.67</td>
+			<td>Q. 185.91</td>
+			<td>Q. 263.33</td>
+		</tr>
+</table> 
+
 #### 80-20 de factura
 
-#### Recorridos más efectivos
+Los montos de las facturaciones dependen del tipo de servicio. En gran parte contribuye los costos que conlleva el transporte hacia el destino.
+
+Facturación por servicios
+```{r include=FALSE}
+#### 80-20 de factura (actividades y vehiculos)
+ac8020 <- data %>% select(factura, Cod)
+
+rev_trans <- ac8020 %>% filter(Cod=='REVISION_TRANSFORMADOR') %>% summarise(s=sum(as.numeric(factura)))
+rev <- ac8020 %>% filter(Cod=='REVISION') %>% summarise(s=sum(as.numeric(factura)))
+ver_ind<- ac8020 %>% filter(Cod=='VERIFICACION_INDICADORES') %>% summarise(s=sum(as.numeric(factura)))
+vis_corr <- ac8020 %>% filter(Cod=='VISITA_POR_CORRECCION') %>% summarise(s=sum(as.numeric(factura)))
+cam_corr<- ac8020 %>% filter(Cod=='CAMBIO_CORRECTIVO') %>% summarise(s=sum(as.numeric(factura)))
+otro_ser <- ac8020 %>% filter(Cod=='OTRO') %>% summarise(s=sum(as.numeric(factura)))
+ver_med<- ac8020 %>% filter(Cod=='VERIFICACION_MEDIDORES') %>% summarise(s=sum(as.numeric(factura)))
+cam_fus <- ac8020 %>% filter(Cod=='CAMBIO_FUSIBLE') %>% summarise(s=sum(as.numeric(factura)))
+cam_pue<- ac8020 %>% filter(Cod=='CAMBIO_PUENTES') %>% summarise(s=sum(as.numeric(factura)))
+visita_ser <- ac8020 %>% filter(Cod=='VISITA') %>% summarise(s=sum(as.numeric(factura)))
+
+fact8020 <- data.frame(servicio=c(
+  'REVISION_TRANSFORMADOR','REVISION','VERIFICACION_INDICADORES','VISITA_POR_CORRECCION',
+  'CAMBIO_CORRECTIVO','OTRO','VERIFICACION_MEDIDORES','CAMBIO_FUSIBLE','CAMBIO_PUENTES',
+  'VISITA'), factura=c(
+    rev_trans$s, rev$s, ver_ind$s, vis_corr$s, cam_corr$s, otro_ser$s, ver_med$s, 
+    cam_fus$s, cam_pue$s, visita_ser$s
+  ))
+```
+
+```{r echo=FALSE, warning=FALSE}
+servicios <- fact8020$factura
+names(servicios) <- fact8020$servicio
+pareto.chart(servicios, col = heat.colors(length(servicios)))
+```
+
+Facturación por vehiculos
+```{r include=FALSE}
+veh8020 <- data %>% select(factura, Vehiculo)
+
+cam80 <- veh8020 %>% filter(Vehiculo=='Camion') %>% summarise(s=sum(as.numeric(factura)))
+pic80 <- veh8020 %>% filter(Vehiculo=='Pickup') %>% summarise(s=sum(as.numeric(factura)))
+mot80 <- veh8020 %>% filter(Vehiculo=='Moto') %>% summarise(s=sum(as.numeric(factura)))
+
+factv8020 <- data.frame(servicio=c(
+  'Camión','Pickup','Moto'), factura=c(cam80$s, pic80$s, mot80$s))
+```
+
+```{r echo=FALSE, warning=FALSE}
+vehiculos <- factv8020$factura
+names(vehiculos) <- factv8020$servicio
+pareto.chart(vehiculos, col = heat.colors(length(vehiculos)))
+```
 
 
-### Recomendaciones para el 2019
+#### Actividades más efectivas
 
-#### Pérdidas en mantenimiento o reparación
+Con esto podemos demostrar los servicios en los que podemos seguir destacando y en otros que se puede mejorar.
+
+Entre las actividades que realiza la empresa se incluyen:
+
+* Revisión de transformador
+
+* Revisión general
+
+* Verificación de indicadores
+
+* Visita por corrección
+
+* Cambio correctivo
+
+* Verificación de medidores
+
+* Cambio de fusibles
+
+* Cambio de puentes
+
+* Visita general
+
+* Otro
+
+Las ganancias por actividades se distribuyen de la siguiente manera:
+
+<table>
+    <tr colspan="3">
+      <th>Ganancia por actividad (2019)</th>
+    </tr>
+    <tr>
+			<td>Servicio</td>
+			<td>Ingreso</td>
+			<td>Costos</td>
+			<td>Ganancia</td>
+			<td>Porcentaje de contribución</td>
+		</tr>
+		<tr>
+			<td>Revisión de transformador</td>
+			<td>Q. 1,970,486</td>
+			<td>Q. 1,527,697</td>
+			<td>Q. 442,789</td>
+			<td>5.2%</td>
+		</tr>
+		<tr>
+			<td>Revisión general</td>
+			<td>Q. 11,968,468</td>
+			<td>Q. 9,316,398</td>
+			<td>Q. 2,652,070</td>
+			<td>31.14%</td>
+		</tr>
+		<tr>
+			<td>Verificación de indicadores</td>
+			<td>Q. 4,530,103</td>
+			<td>Q. 3,485,922</td>
+			<td>Q. 1,044,181</td>
+			<td>12.26%</td>
+		</tr>
+		<tr>
+			<td>Visita por corrección</td>
+			<td>Q. 2,912,254</td>
+			<td>Q. 2,170,256</td>
+			<td>Q. 741,998</td>
+			<td>8.71%</td>
+		</tr>
+		<tr>
+			<td>Cambio correctivo</td>
+			<td>Q. 4,465,830</td>
+			<td>Q. 3,454,821</td>
+			<td>Q. 1,011,009</td>
+			<td>11.87%</td>
+		</tr>
+		<tr>
+			<td>Otro</td>
+			<td>Q. 1,037,758</td>
+			<td>Q. 778,511.4</td>
+			<td>Q. 259,247</td>
+			<td>3.04%</td>
+		</tr>
+		<tr>
+			<td>Verificación de medidores</td>
+			<td>Q. 6,236,958</td>
+			<td>Q. 4,871,797</td>
+			<td>Q. 1,365,161</td>
+			<td>16.03%</td>
+		</tr>
+		<tr>
+			<td>Cambio de fusibles</td>
+			<td>Q. 2,936,608</td>
+			<td>Q. 2,082,331</td>
+			<td>Q. 854,277</td>
+			<td>10.03%</td>
+		</tr>
+		<tr>
+			<td>Cambio de puentes</td>
+			<td>Q. 325,281.4</td>
+			<td>Q. 250,407.4</td>
+			<td>Q. 74,874</td>
+			<td>0.87%</td>
+		</tr>
+		<tr>
+			<td>Visita general</td>
+			<td>Q. 304,350.7</td>
+			<td>Q. 235,879.7</td>
+			<td>Q. 68,471</td>
+			<td>0.80%</td>
+		</tr>
+</table>
+
+Con esto se evidencia que las revisiones son de vital importancia para la empresa, pues suponen un gran margen de sus ganancias. Por otro lado, las visitas generales son las que menos contribuyen.
+
+### Recomendaciones para el 2021
+
+#### Mantenimientos y reparaciones
+```{r include=FALSE}
+#### Mantenimiento o reparación
+
+# mantenimiento
+mant <- data %>% select(Cod, factura, costoVehiculo) %>% filter(Cod=='REVISION_TRANSFORMADOR' | Cod=="REVISION") %>% summarise(factura_tot=sum(as.numeric(factura)), costos_tot=sum(as.numeric(costoVehiculo)))
+ganancia_mant <- mant$factura_tot-mant$costos_tot
+contribucion_mant<-ganancia_mant/ganancia_anual
+
+# reparacion
+correccion <- data %>% select(Cod, factura, costoVehiculo) %>% filter(Cod=='CAMBIO_CORRECTIVO' | Cod=="VISITA_POR_CORRECCION") %>% summarise(factura_tot=sum(as.numeric(factura)), costos_tot=sum(as.numeric(costoVehiculo)))
+ganancia_corr <- correccion$factura_tot-correccion$costos_tot
+contribucion_corr<-ganancia_corr/ganancia_anual
+
+```
+
+<table>
+    <tr colspan="4">
+      <th>Mantenimiento anual</th>
+    </tr>
+    <tr>
+			<td>Ingresos</td>
+			<td>Costos</td>
+			<td>Ganancia</td>
+			<td>Porcentaje</td>
+		</tr>
+		<tr>
+			<td>Q. 13,938,954</td>
+			<td>Q. 10,844,095</td>
+			<td>Q. 3,094,859</td>
+			<td>36.35%</td>
+		</tr>
+</table> 
+
+<table>
+    <tr colspan="4">
+      <th>Correcciones 2019</th>
+    </tr>
+    <tr>
+			<td>Ingresos</td>
+			<td>Costos</td>
+			<td>Ganancia</td>
+			<td>Porcentaje</td>
+		</tr>
+		<tr>
+			<td>Q. 7,378,084</td>
+			<td>Q. 5,625,077</td>
+			<td>Q. 1,753,007</td>
+			<td>20.58%</td>
+		</tr>
+</table> 
+
+En general, las actividades de mantenimiento y reparación son una gran porción de los margenes de ganancia. No constituyen grandes pérdidas a la empresa pero sí podrían mejorar.
 
 #### Apertura de centros de distribución
 
+```{r include=FALSE}
+centros <- unique(data$origen)
+
+total_viajes <- nrow(data)
+
+# porcentaje de viajes por origen
+# porcentaje de viajes por origen
+centro027 <- data %>% filter(origen=='150277')
+viajes027 <- nrow(centro027)/total_viajes*100
+
+centro022 <- data %>% filter(origen=='150224')
+viajes022 <- nrow(centro022)/total_viajes*100
+
+centro084 <- data %>% filter(origen=='150841')
+viajes084 <- nrow(centro084)/total_viajes*100
+
+centro028 <- data %>% filter(origen=='150278')
+viajes028 <- nrow(centro028)/total_viajes*100
+
+viajes_centros <- data.frame(centro=c(1:4), contribuciones=c(viajes027, viajes022, viajes084, viajes028))
+```
+
+Se cuenta con 4 centros de distribución:
+
+* Centro 1: 150277
+
+* Centro 2: 150224
+
+* Centro 3: 150841
+
+* Centro 4: 150278
+
+El volumen que maneja cada uno con respecto al total de viajes al año es:
+
+```{r echo=FALSE}
+ggplot(viajes_centros, aes(x="", y=contribuciones, fill=centro))+
+  geom_bar(stat="identity", width=1)+
+  coord_polar("y", start=0)+
+  theme_minimal()
+```
+
+Sería conveniente abrir otro centro cerca entre 150277 (centro 1) y 150224 (centro 2) o expandir alguno de estos.
+
 #### Estrategias a seguir
+
+* Fometar el uso de motocicletas para más servicios ya que tienen un costo más bajo que otras unidades y consecuentemente un margen de ganancia mayor.
+
+* Mantener las tarifas por rangos de tiempo, ya que se han mantenido muy estables durante 2019.
+
+* Extender los períodos de tiempo de cambios de puentes y visitas generales ya que constituyen costos muy altos para la empresa.
